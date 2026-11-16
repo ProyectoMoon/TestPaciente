@@ -2,7 +2,7 @@
 
 Copia de la [página de pacientes](https://proyectomoon.github.io/Paciente/) en **modo simulador**, para probar las alertas sin tener puesta la pulsera.
 
-**Web:** https://proyectomoon.github.io/TestPacientes/
+**Web:** https://proyectomoon.github.io/TestPaciente/
 
 ## Cómo se usa
 1. Entrá con la **contraseña de administrador**. No hace falta crear una cuenta.
