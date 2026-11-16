@@ -987,7 +987,7 @@
           </div>
 
           <div class="tp-footer">
-            <label class="tp-switch"><input type="checkbox" id="tp-stream" checked onchange="tpStreamChanged()"><span class="tp-track"></span> Transmisión en vivo (como la pulsera, cada 1 s)</label>
+            <label class="tp-switch"><input type="checkbox" id="tp-stream" checked onchange="tpStreamChanged()"><span class="tp-track"></span> Transmisión en vivo</label>
             <label class="tp-switch"><input type="checkbox" id="tp-jitter" onchange="tpSave()"><span class="tp-track"></span> Variación natural (±)</label>
             <label class="tp-switch"><input type="checkbox" id="tp-mail" onchange="tpMailChanged()"><span class="tp-track"></span> Mandar mails reales</label>
             <button type="button" class="tp-btn ghost" onclick="tpEnviarAhora()"><i class="ti ti-send" aria-hidden="true"></i> Enviar lectura</button>
@@ -2556,7 +2556,7 @@
       const dest = ptGetEmergencyEmail() || '(sin email válido)';
       document.getElementById('tp-mail-hint').innerHTML = tp.mail
         ? 'Los mails de alerta <b>se envían de verdad</b> a <b>' + dest + '</b> (cambialo en "Editar perfil").'
-        : 'Mails desactivados: las alertas se muestran acá sin mandar nada. Destino configurado: ' + dest + '.';
+        : 'Mails desactivados. Destino configurado: ' + dest + '.';
     }
     function tpMailChanged() {
       const chk = document.getElementById('tp-mail');
