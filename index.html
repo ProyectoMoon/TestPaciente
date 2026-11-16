@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" href="logo.png" type="image/png">
-  <title>MOON · Test de pacientes</title>
+  <title>MOON · Simulador de paciente</title>
   <meta name="description" content="Panel del paciente MOON: iniciá sesión para ver los signos vitales en tiempo real, el diagnóstico automático y gestionar el perfil médico." />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="MOON – Panel del Paciente" />
@@ -742,10 +742,10 @@
     .pm-vital::before { content: none; }
     .pm-vital-status:empty { display: none; }
 
-    /* ===================== MODO TEST: panel de pruebas ===================== */
+    /* ===================== MODO SIMULADOR: panel de pruebas ===================== */
     .tp-nav-badge {
       font-family: 'Inter', sans-serif; font-size: 0.62rem; font-weight: 700; letter-spacing: 0.12em;
-      background: rgba(239,159,39,0.15); color: #f0b558; border: 1px solid rgba(239,159,39,0.45);
+      background: rgba(143,168,200,0.12); color: var(--moon); border: 1px solid rgba(143,168,200,0.4);
       padding: 2px 8px; border-radius: 999px; margin-left: 0.2rem;
     }
     .tp-panel {
@@ -837,7 +837,7 @@
   <nav>
     <a class="nav-logo" href="https://proyectomoon.github.io/Web/">
       <img src="logo-glass.png" alt="" class="nav-logo-icon" aria-hidden="true">
-      MOON <span class="tp-nav-badge">TEST</span>
+      MOON <span class="tp-nav-badge">SIMULADOR</span>
     </a>
     <ul class="nav-links">
       <li class="nav-user" id="navUser"></li>
@@ -847,11 +847,11 @@
 
   <div class="page-wrap">
 
-    <!-- LOGIN ADMINISTRATIVO (modo test: solo contraseña) -->
+    <!-- LOGIN ADMINISTRATIVO (modo simulador: solo contraseña) -->
     <div id="pt-loginView">
-      <p class="section-label">Acceso administrativo · Modo test</p>
-      <h1 class="section-title">Test de pacientes</h1>
-      <p class="section-sub">Ingresá la contraseña de administrador para abrir el panel del paciente en modo prueba y simular pulso, oxígeno y caídas.</p>
+      <p class="section-label">Acceso administrativo · Modo simulador</p>
+      <h1 class="section-title">Simulador de paciente</h1>
+      <p class="section-sub">Ingresá la contraseña de administrador para abrir el panel del paciente en modo simulador y simular pulso, oxígeno y caídas.</p>
       <div class="pt-card">
         <div class="pt-error" id="pt-loginError">Contraseña incorrecta.</div>
         <form id="pt-loginForm">
@@ -924,7 +924,7 @@
         <button class="pt-ghost-btn" onclick="ptEditProfile()"><i class="ti ti-edit"></i> Editar perfil</button>
       </div>
 
-      <!-- ================= PANEL DE PRUEBAS (solo en modo test) ================= -->
+      <!-- ================= PANEL DE PRUEBAS (solo en modo simulador) ================= -->
       <section class="tp-panel" id="tp-panel" aria-label="Panel de pruebas">
         <div class="tp-head">
           <div class="tp-head-title"><i class="ti ti-flask" aria-hidden="true"></i> Panel de pruebas <span class="tp-pill">Simulador</span></div>
@@ -1246,7 +1246,7 @@
 
     let ptAuth = null, ptDb = null;
     const ptNube = (function () {
-      return false; // MODO TEST: sin Firebase, todo queda en este navegador
+      return false; // MODO SIMULADOR: sin Firebase, todo queda en este navegador
       if (FIREBASE_CONFIG.apiKey === 'TU_API_KEY' || !window.firebase) return false;
       try {
         firebase.initializeApp(FIREBASE_CONFIG);
@@ -1346,7 +1346,7 @@
 
     // ---- Formularios de login / registro ----
     // ==========================================================================
-    // MODO TEST — Ingreso administrativo por contraseña
+    // MODO SIMULADOR — Ingreso administrativo por contraseña
     // La contraseña NO está escrita acá: se guarda solo su huella SHA-256.
     // Para cambiarla, generá el hash nuevo (por ejemplo en la consola del
     // navegador con tpHash('mi-clave-nueva')) y pegalo en TP_ADMIN_HASH.
@@ -1491,7 +1491,7 @@
 
       // Intenta reconectar solo con la pulsera que se eligió la última vez
       // para esta cuenta, sin volver a pedir que se elija de la lista.
-      // MODO TEST: sin Bluetooth real; la pulsera se muestra "conectada"
+      // MODO SIMULADOR: sin Bluetooth real; la pulsera se muestra "conectada"
       // cuando el panel de pruebas empieza a mandar datos.
       tpBleUI(false);
     }
@@ -2430,7 +2430,7 @@
 
 
     // ==========================================================================
-    // MODO TEST — Panel de pruebas
+    // MODO SIMULADOR — Panel de pruebas
     // Simula lo que manda la pulsera ("spo2,bpm,temp,gMax,gMin") y lo pasa por
     // EXACTAMENTE la misma lógica de la página real: ptSetLiveVitals (umbrales,
     // diagnóstico, alarma) y ptProcessG (detección de caídas).
@@ -2629,7 +2629,7 @@
     const tpEnqueueEmailReal = ptEnqueueEmail;
     ptEnqueueEmail = function (job, urgente) {
       if (!tp.mail) {
-        ptMailStatus(true, 'Modo test: mail de ' + job.label + ' simulado (no se envió). Iría a ' + job.params.to_email + '.');
+        ptMailStatus(true, 'Modo simulador: mail de ' + job.label + ' simulado (no se envió). Iría a ' + job.params.to_email + '.');
         tpAgregarLog('mail', 'Mail de ' + job.label + ' simulado → ' + job.params.to_email);
         return;
       }

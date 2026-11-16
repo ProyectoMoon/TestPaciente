@@ -1,6 +1,6 @@
-# MOON · Test de pacientes
+# MOON · Simulador de paciente
 
-Copia de la [página de pacientes](https://proyectomoon.github.io/Paciente/) en **modo prueba**, para probar las alertas sin tener puesta la pulsera.
+Copia de la [página de pacientes](https://proyectomoon.github.io/Paciente/) en **modo simulador**, para probar las alertas sin tener puesta la pulsera.
 
 **Web:** https://proyectomoon.github.io/TestPacientes/
 
