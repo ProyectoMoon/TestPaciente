@@ -1016,12 +1016,6 @@
             <span id="pt-ble-status">Sin conectar</span>
           </div>
         </div>
-        <button class="pt-ble-action" id="pt-ble-btn" onclick="ptConnectBluetooth()">
-          <i class="ti ti-bluetooth" aria-hidden="true"></i> Conectar
-        </button>
-        <div class="pt-ble-hint" id="pt-ble-hint">Elegí tu dispositivo de la lista</div>
-        <!-- Se muestra solo si el navegador no puede usar Bluetooth (iPhone, Safari, Firefox...) -->
-        <div class="pt-ble-help" id="pt-ble-help"></div>
       </div>
 
         <div class="pm-patient">
@@ -1497,8 +1491,9 @@
 
       // Intenta reconectar solo con la pulsera que se eligió la última vez
       // para esta cuenta, sin volver a pedir que se elija de la lista.
-      ptCheckBluetoothSupport();
-      ptTryAutoReconnect();
+      // MODO TEST: sin Bluetooth real; la pulsera se muestra "conectada"
+      // cuando el panel de pruebas empieza a mandar datos.
+      tpBleUI(false);
     }
 
     function ptEditProfile() { ptShowSetup(ptGetMyProfile()); }
@@ -2498,8 +2493,16 @@
     }
 
     // Igual que cuando llega una lectura válida por Bluetooth
+    // Pulsera simulada: se ve conectada mientras el panel de pruebas le pasa datos
+    function tpBleUI(conectada) {
+      document.getElementById('pt-ble-card').classList.toggle('is-connected', conectada);
+      document.getElementById('pt-ble-dot').classList.toggle('connected', conectada);
+      document.getElementById('pt-ble-status').textContent = conectada ? 'Conectada — recibiendo datos' : 'Sin conectar';
+    }
+
     function tpEmitirVitales(spo2, bpm) {
       if (!document.body.classList.contains('is-panel')) return;
+      tpBleUI(true);
       ptLastRealVitalsTs = Date.now();
       ptLastGood = { spo2: spo2, bpm: bpm };
       ptStale = false;
@@ -2507,6 +2510,7 @@
     }
     function tpEmitirG(g) {
       if (!document.body.classList.contains('is-panel')) return;
+      tpBleUI(true);
       ptProcessG(g, Math.min(g, 1));
     }
 
@@ -2537,6 +2541,7 @@
       document.getElementById('tp-stream').checked = false;
       tpStreamChanged();
       ptRenderWaiting();
+      tpBleUI(false);
       tpAgregarLog('', 'Sensor cortado: el panel volvió a "Esperando datos".');
     }
 
