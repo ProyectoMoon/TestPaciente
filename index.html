@@ -1312,7 +1312,7 @@
     // ==========================================================================
     // MODO SIMULADOR — Entrada directa, sin contraseña ni cuenta
     // ==========================================================================
-    const TP_ADMIN_SESSION = { email: 'admin@moon.test', name: 'Administrador' };
+    const TP_ADMIN_SESSION = { email: 'admin@moon.test', name: 'Usuario' };
 
     function tpPerfilDePrueba() {
       return {
@@ -1386,7 +1386,7 @@
     function ptShowPanel(profile) {
       ptShowView('pt-panelView');
       const session = ptGetSession();
-      document.getElementById('pt-hello').textContent = session ? ('Modo administrador · Alertas a: ' + (profile.alertEmail || session.email)) : '';
+      document.getElementById('pt-hello').textContent = session ? ('Modo usuario · Alertas a: ' + (profile.alertEmail || session.email)) : '';
       tpOnPanel();
       document.getElementById('navUser').textContent = session ? ('Hola, ' + session.name.split(' ')[0]) : '';
 
@@ -2585,7 +2585,7 @@
     // ---- Ruteo según sesión / perfil existente ----
     function ptRouteAfterAuth() {
       const session = ptGetSession();
-      if (!session) ptSetSession(TP_ADMIN_SESSION);
+      if (!session || session.name !== TP_ADMIN_SESSION.name) ptSetSession(TP_ADMIN_SESSION);
       const profile = ptGetMyProfile();
       if (profile) ptShowPanel(profile); else { const p = tpPerfilDePrueba(); ptSaveMyProfile(p); ptShowPanel(p); }
     }
