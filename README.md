@@ -5,7 +5,7 @@ Copia de la [página de pacientes](https://proyectomoon.github.io/Paciente/) en 
 **Web:** https://proyectomoon.github.io/TestPaciente/
 
 ## Cómo se usa
-1. Entrá con la **contraseña de administrador**. No hace falta crear una cuenta.
+1. Abrí la página: entra directo a la simulación, sin contraseña ni cuenta.
 2. En el **Panel de pruebas** de arriba:
    - **Pulso** y **Oxígeno en sangre**: mové el control deslizante o escribí el valor. Al lado se ve si cae en Normal, Irregular o Crítico.
    - **Acelerómetro**: con **Simular caída** se manda un pico de impacto, o podés elegir los g a mano y tocar **Enviar aceleración**.
@@ -16,11 +16,3 @@ Copia de la [página de pacientes](https://proyectomoon.github.io/Paciente/) en 
 
 Los valores pasan por **la misma lógica** de la página real: los mismos umbrales, el mismo diagnóstico y la misma alarma cada 10 s.
 
-## Cambiar la contraseña
-La contraseña no está escrita en el código. Solo se guarda su hash SHA-256 en `TP_ADMIN_HASH`, dentro de `index.html`. Para cambiarla, abrí la página, ejecutá en la consola del navegador:
-
-```js
-tpHash('mi-clave-nueva').then(console.log)
-```
-
-y pegá el resultado en `TP_ADMIN_HASH`.
