@@ -12,7 +12,8 @@ Copia de la [página de pacientes](https://proyectomoon.github.io/Paciente/) en 
    - **Escenarios**: Normal, Irregular, Hipoxia, Taquicardia y Bradicardia.
    - **Transmisión en vivo**: manda una lectura por segundo, igual que la pulsera.
    - **Mandar mails reales**: está apagado por defecto y los mails se simulan. Para recibirlos de verdad, cargá un email en "Editar perfil".
-   - **Registro de alertas**: lista cada alarma y cada mail.
+   - **Registro de alertas**: lista cada alarma, cada mail y cada notificación al celular.
+   - **Notificaciones al celular (ntfy)**: en "Editar perfil" tocá **Generar** y después **Probar**. En el celular instalá la app gratis **ntfy**, tocá **+** y suscribite a ese canal. Las notificaciones de caída y de valores críticos se mandan **de verdad** (solo a ese canal).
 
 Los valores pasan por **la misma lógica** de la página real: los mismos umbrales, el mismo diagnóstico y la misma alarma cada 10 s.
 

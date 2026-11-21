@@ -888,6 +888,17 @@
             <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem;">Si lo dejás vacío, las alertas llegan al email de tu cuenta.</div>
           </div>
 
+          <div class="pt-field pt-field-full">
+            <label for="pt-pNtfy">Canal de alertas al celular (app ntfy, gratis)</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input type="text" id="pt-pNtfy" placeholder="Ej: moon-ana-k7f3x9q2" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false" oninput="ptNtfyAyuda()" style="flex:1;min-width:180px;">
+              <button type="button" class="pt-ghost-btn" onclick="ptNtfyGenerar()"><i class="ti ti-refresh"></i> Generar</button>
+              <button type="button" class="pt-ghost-btn" onclick="ptNtfyPrueba(this)"><i class="ti ti-bell-ringing"></i> Probar</button>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:0.4rem;">El familiar instala la app <b>ntfy</b> (Play Store / App Store), toca <b>+</b> y se suscribe a este canal. Ante una caída o un valor crítico le suena una alerta urgente. Tocá <b>Generar</b> para crear un nombre difícil de adivinar. Si lo dejás vacío, no se mandan notificaciones.</div>
+            <div id="pt-ntfy-link" style="font-size:0.72rem;color:var(--text-muted);margin-top:0.4rem;word-break:break-all;"></div>
+          </div>
+
           <button type="submit" class="pt-btn" style="margin-top:1.6rem;">Guardar y ver panel del paciente</button>
         </form>
       </div>
@@ -1052,6 +1063,8 @@
             <button type="button" class="pt-fall-dismiss" id="pt-fall-dismiss" onclick="ptDismissFall()">Estoy bien (falsa alarma)</button>
           </div>
           <div class="pt-fall-sub" id="pt-mail-status" style="display:none;margin-top:0.8rem;"></div>
+          <div class="pt-fall-sub" id="pt-ntfy-status" style="display:none;margin-top:0.4rem;"></div>
+          <button type="button" class="pt-ghost-btn" id="pt-ntfy-btn" onclick="ptNtfyManual()" style="margin-top:0.8rem;"><i class="ti ti-bell-ringing"></i> Avisar a mi familiar</button>
         </div>
 
         </div>
@@ -1373,6 +1386,7 @@
       const ptCuenta = ptSess ? ptSess.email : '';
       if (existing) {
         document.getElementById('pt-pAlertEmail').value = existing.alertEmail || ptCuenta;
+        document.getElementById('pt-pNtfy').value = existing.alertNtfy || '';
         document.getElementById('pt-pName').value = existing.name || '';
         document.getElementById('pt-pAge').value = existing.age || '';
         document.getElementById('pt-pGender').value = existing.gender || '';
@@ -1380,13 +1394,15 @@
       } else {
         document.getElementById('pt-setupForm').reset();
         document.getElementById('pt-pAlertEmail').value = ptCuenta;
+        document.getElementById('pt-pNtfy').value = '';
       }
+      ptNtfyAyuda();
     }
 
     function ptShowPanel(profile) {
       ptShowView('pt-panelView');
       const session = ptGetSession();
-      document.getElementById('pt-hello').textContent = session ? ('Modo usuario · Alertas a: ' + (profile.alertEmail || session.email)) : '';
+      document.getElementById('pt-hello').textContent = session ? ('Modo usuario · Alertas a: ' + (profile.alertEmail || session.email) + (profile.alertNtfy ? ' · Celular (ntfy): ' + profile.alertNtfy : '')) : '';
       tpOnPanel();
       document.getElementById('navUser').textContent = session ? ('Hola, ' + session.name.split(' ')[0]) : '';
 
@@ -1434,6 +1450,11 @@
         alert('El email de alertas "' + alertEmailInput + '" no es válido. Revisalo (ej: familiar@gmail.com).');
         return;
       }
+      const alertNtfyInput = ptLimpiarNtfy(document.getElementById('pt-pNtfy').value);
+      if (alertNtfyInput && !ptNtfyValido(alertNtfyInput)) {
+        alert('El canal de ntfy "' + alertNtfyInput + '" no es válido. Usá mínimo 6 caracteres: letras, números, - o _ (o tocá "Generar").');
+        return;
+      }
       const errorEl = document.getElementById('pt-setupError');
       const submitBtn = e.target.querySelector('.pt-btn');
 
@@ -1451,6 +1472,7 @@
         diseases: [...ptSetupActive],
         otras: otras,
         alertEmail: alertEmailInput || (ptGetSession() ? ptGetSession().email : ''),
+        alertNtfy: alertNtfyInput,
         vitals: existing ? existing.vitals : null, // se completa con datos reales de la pulsera
         updatedAt: new Date().toISOString()
       };
@@ -2276,6 +2298,9 @@
         const vitales = criticos.filter(c => c !== 'caída detectada');
         if (ptAlarmState.caida === 'danger') ptSendFallEmail(); // la caída va primero
         if (vitales.length) ptSendEmergencyEmail(vitales);
+        // Notificación urgente al celular del familiar (ntfy), con sus propias esperas
+        if (ptAlarmState.caida === 'danger') ptNtfyCaida();
+        if (vitales.length) ptNtfyVitales(vitales);
       } else {
         banner.style.display = 'none';
       }
@@ -2291,6 +2316,193 @@
       if (ptAlarmTimer) {
         clearInterval(ptAlarmTimer);
         ptAlarmTimer = null;
+      }
+    }
+
+    // ==========================================================================
+    // NOTIFICACIONES AL CELULAR (ntfy) — gratis, sin cuenta y sin servidor propio
+    // El familiar instala la app "ntfy" (Android / iPhone), toca "+" y se
+    // suscribe al canal que figura en el perfil del paciente. Ante una caída o
+    // un valor crítico, la página publica una notificación URGENTE en ese canal:
+    // suena y vibra fuerte en el celular del familiar.
+    // El nombre del canal funciona como contraseña: cualquiera que lo sepa
+    // puede leerlo o publicar en él, por eso conviene uno largo (botón "Generar").
+    // ==========================================================================
+    const NTFY_SERVER             = 'https://ntfy.sh';
+    const NTFY_REPETIR_CAIDA_MS   = 60 * 1000;       // caída activa: recordatorio cada 1 minuto
+    const NTFY_REPETIR_VITALES_MS = 2 * 60 * 1000;   // signos vitales críticos: recordatorio cada 2 minutos
+
+    let ptLastFallNtfyTs = 0;
+    let ptLastVitalsNtfyTs = 0;
+
+    // Acepta el nombre solo o un link tipo https://ntfy.sh/nombre
+    function ptLimpiarNtfy(t) {
+      return String(t || '').trim()
+        .replace(/^https?:\/\/[^/]+\//i, '')
+        .replace(/[\s​-‍⁠﻿]/g, '')
+        .replace(/\/+$/, '');
+    }
+    function ptNtfyValido(t) { return /^[A-Za-z0-9_-]{6,64}$/.test(t); }
+    function ptGetNtfyTopic() {
+      const profile = ptGetMyProfile();
+      const t = ptLimpiarNtfy(profile && profile.alertNtfy);
+      return ptNtfyValido(t) ? t : '';
+    }
+
+    // Arma un nombre de canal difícil de adivinar, ej: moon-ana-k7f3x9q2
+    function ptNtfyGenerar() {
+      const nombre = (document.getElementById('pt-pName').value || 'paciente')
+        .toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').split('-')[0] || 'paciente';
+      const abc = 'abcdefghijkmnpqrstuvwxyz23456789';
+      const rnd = new Uint32Array(10);
+      (window.crypto || window.msCrypto).getRandomValues(rnd);
+      const sufijo = Array.from(rnd, n => abc[n % abc.length]).join('');
+      document.getElementById('pt-pNtfy').value = 'moon-' + nombre.slice(0, 12) + '-' + sufijo;
+      ptNtfyAyuda();
+    }
+
+    // Muestra en el formulario el link para suscribirse desde el navegador
+    function ptNtfyAyuda() {
+      const el = document.getElementById('pt-ntfy-link');
+      if (!el) return;
+      const t = ptLimpiarNtfy(document.getElementById('pt-pNtfy').value);
+      if (ptNtfyValido(t)) {
+        el.innerHTML = 'En la app ntfy: <b>+</b> → escribí <b>' + t + '</b> → Suscribirse. O abrí <a href="' + NTFY_SERVER + '/' + t + '" target="_blank" rel="noopener">' + NTFY_SERVER.replace('https://', '') + '/' + t + '</a>';
+      } else {
+        el.textContent = '';
+      }
+    }
+
+    function ptNtfyStatus(ok, text) {
+      const el = document.getElementById('pt-ntfy-status');
+      if (!el) return;
+      el.style.display = 'block';
+      el.style.color = ok ? '#9bd15a' : '#f2a3a2';
+      el.textContent = (ok ? '🔔 ' : '⚠ ') + text;
+    }
+
+    // Publica en ntfy. Se manda como JSON a la raíz del servidor (sin headers
+    // propios), así el navegador no necesita "preflight" CORS.
+    async function ptNtfyEnviar(n, topicForzado) {
+      const topic = topicForzado || ptGetNtfyTopic();
+      if (!topic) return false;
+      const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+      try {
+        const res = await fetch(NTFY_SERVER, {
+          method: 'POST',
+          body: JSON.stringify({
+            topic: topic,
+            title: n.titulo,
+            message: n.mensaje,
+            priority: n.prioridad || 5,
+            tags: n.tags || ['rotating_light']
+          })
+        });
+        if (!res.ok) throw new Error('ntfy respondió ' + res.status);
+        console.log('MOON: notificación de ' + n.label + ' enviada al canal ' + topic);
+        ptNtfyStatus(true, 'Notificación de ' + n.label + ' enviada al celular (' + hora + ')');
+        return true;
+      } catch (err) {
+        console.error('MOON: no se pudo mandar la notificación de ' + n.label, err);
+        ptNtfyStatus(false, 'No se pudo mandar la notificación de ' + n.label + ': ' + err.message);
+        return false;
+      }
+    }
+
+    function ptNtfyDatos() {
+      const profile = ptGetMyProfile();
+      return {
+        nombre: profile ? profile.name : 'el paciente',
+        vitales: 'Oxígeno: ' + ptVitalForMail('spo2') + ' · Pulso: ' + ptVitalForMail('bpm')
+      };
+    }
+
+    async function ptNtfyCaida() {
+      if (!ptGetSession() || !ptGetNtfyTopic()) return;
+      if (ptLastFallNtfyTs && Date.now() - ptLastFallNtfyTs < NTFY_REPETIR_CAIDA_MS) return;
+      ptLastFallNtfyTs = Date.now();
+      const d = ptNtfyDatos();
+      const ok = await ptNtfyEnviar({
+        label: 'caída',
+        titulo: '🚨 Caída detectada — ' + d.nombre,
+        mensaje: 'La pulsera MOON detectó una posible caída de ' + d.nombre + '. Comuníquese con el paciente de inmediato.\n' + d.vitales,
+        prioridad: 5,
+        tags: ['rotating_light', 'warning']
+      });
+      if (!ok) ptLastFallNtfyTs = 0; // reintenta en el próximo chequeo
+    }
+
+    async function ptNtfyVitales(criticos) {
+      if (!ptGetSession() || !ptGetNtfyTopic()) return;
+      if (ptLastVitalsNtfyTs && Date.now() - ptLastVitalsNtfyTs < NTFY_REPETIR_VITALES_MS) return;
+      ptLastVitalsNtfyTs = Date.now();
+      const d = ptNtfyDatos();
+      const ok = await ptNtfyEnviar({
+        label: 'signos vitales',
+        titulo: '🚨 Valor crítico — ' + d.nombre,
+        mensaje: d.nombre + ' tiene un valor crítico en ' + criticos.join(', ') + '. Comuníquese con el paciente.\n' + d.vitales,
+        prioridad: 5,
+        tags: ['rotating_light', 'heart']
+      });
+      if (!ok) ptLastVitalsNtfyTs = 0;
+    }
+
+    // Después de "Estoy bien": aviso tranquilo para que el familiar no se alarme de más
+    function ptNtfyFalsaAlarma() {
+      if (!ptGetSession() || !ptGetNtfyTopic()) return;
+      const d = ptNtfyDatos();
+      ptNtfyEnviar({
+        label: 'falsa alarma',
+        titulo: '✅ ' + d.nombre + ' está bien',
+        mensaje: d.nombre + ' tocó "Estoy bien": la caída anterior fue una falsa alarma.',
+        prioridad: 3,
+        tags: ['white_check_mark']
+      });
+    }
+
+    // Botón "Avisar a mi familiar" (pedido de ayuda manual)
+    async function ptNtfyManual() {
+      if (!ptGetNtfyTopic()) {
+        ptNtfyStatus(false, 'No hay canal de ntfy cargado. Agregalo en "Editar perfil".');
+        return;
+      }
+      if (!confirm('¿Mandar ahora un pedido de ayuda urgente al celular de tu familiar?')) return;
+      const btn = document.getElementById('pt-ntfy-btn');
+      btn.disabled = true;
+      const d = ptNtfyDatos();
+      await ptNtfyEnviar({
+        label: 'pedido de ayuda',
+        titulo: '🆘 ' + d.nombre + ' pide ayuda',
+        mensaje: d.nombre + ' pidió ayuda desde la página MOON. Comuníquese con el paciente de inmediato.\n' + d.vitales,
+        prioridad: 5,
+        tags: ['sos']
+      });
+      setTimeout(() => { btn.disabled = false; }, 15 * 1000);
+    }
+
+    // Botón "Probar" del perfil: usa el canal escrito en el formulario (aunque no se haya guardado)
+    async function ptNtfyPrueba(btn) {
+      const t = ptLimpiarNtfy(document.getElementById('pt-pNtfy').value);
+      const out = document.getElementById('pt-ntfy-link');
+      if (!ptNtfyValido(t)) {
+        alert('Primero escribí o generá un canal (mínimo 6 caracteres: letras, números, - o _).');
+        return;
+      }
+      btn.disabled = true;
+      const ok = await ptNtfyEnviar({
+        label: 'prueba',
+        titulo: 'Prueba de MOON',
+        mensaje: 'Si ves esto, las alertas de la pulsera MOON van a llegar a este celular.',
+        prioridad: 4,
+        tags: ['bell']
+      }, t);
+      btn.disabled = false;
+      if (out) {
+        ptNtfyAyuda();
+        out.insertAdjacentHTML('afterbegin', ok
+          ? '<span style="color:#9bd15a">✓ Prueba enviada. Si no la ves, revisá que estés suscripto a este canal.</span><br>'
+          : '<span style="color:#f2a3a2">⚠ No se pudo enviar la prueba. Revisá la conexión.</span><br>');
       }
     }
 
@@ -2349,13 +2561,16 @@
       // y manda el mail enseguida. El límite solo frena los reenvíos repetidos
       // de la MISMA emergencia.
       ptLastFallEmailTs = 0;
+      ptLastFallNtfyTs = 0;  // caída nueva: la notificación sale enseguida
       ptCheckAlarm();
     }
 
     function ptDismissFall() {
       fallState = 'idle';
       fallIgnorarHasta = Date.now() + FALL_REARM_MS;  // que no salte de nuevo al levantarse
+      const eraAlerta = fallState === 'alert' || ptAlarmState.caida === 'danger';
       ptAlarmState.caida = 'ok';
+      if (eraAlerta) ptNtfyFalsaAlarma();
       ptFallUI('active', 'Monitoreando', 'Acelerómetro activo');
       ptCheckAlarm();
     }
@@ -2567,6 +2782,16 @@
       }
       tpAgregarLog('mail', 'Mail de ' + job.label + ' enviado → ' + job.params.to_email);
       tpEnqueueEmailReal(job, urgente);
+    };
+
+    // Las notificaciones de ntfy se mandan de verdad (van solo al canal propio)
+    // y quedan anotadas en el registro de alertas
+    const tpNtfyEnviarReal = ptNtfyEnviar;
+    ptNtfyEnviar = async function (n, topicForzado) {
+      const topic = topicForzado || ptGetNtfyTopic();
+      const ok = await tpNtfyEnviarReal(n, topicForzado);
+      tpAgregarLog('mail', 'Notificación ntfy de ' + n.label + (ok ? ' enviada → ' : ' FALLÓ → ') + topic);
+      return ok;
     };
 
     // Se llama cada vez que se abre el panel del paciente
