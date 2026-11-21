@@ -1966,6 +1966,11 @@
           (bpmState === 'danger' && estadoPrevio.bpm !== 'danger')) {
         ptLastEmailTs = 0;
         ptCheckAlarm();
+      } else if ((estadoPrevio.spo2 === 'danger' && spo2State !== 'danger') ||
+                 (estadoPrevio.bpm === 'danger' && bpmState !== 'danger')) {
+        // Si un signo vital salió de crítico, se revisa ya mismo para que la
+        // alerta se apague al instante (sin esperar el chequeo de 10 segundos).
+        ptCheckAlarm();
       }
 
       ptBuildDiags(spo2, spo2State, bpm, bpmState);
