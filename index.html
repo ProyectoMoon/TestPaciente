@@ -2143,6 +2143,8 @@
 
     // Muestra en pantalla (tarjeta de caídas) si el mail salió o falló y por qué.
     function ptMailStatus(ok, text) {
+      // Los errores de envío ya no se muestran en pantalla (solo en la consola).
+      if (!ok) { console.warn('MOON mail: ' + text); return; }
       const el = document.getElementById('pt-mail-status');
       if (!el) return;
       el.style.display = 'block';
