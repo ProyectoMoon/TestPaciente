@@ -2111,6 +2111,10 @@
     const EMAILJS_SERVICE_ID  = 'service_w2r8stx';
     const EMAILJS_TEMPLATE_ID = 'template_5w0va9e';
 
+    // Mails por Brevo (gratis), a través de la función de Vercel (repo Paciente: api/email.js).
+    // Si se deja vacío, se usa EmailJS como antes.
+    const EMAIL_FUNCTION_URL = 'https://moon-paciente.vercel.app/api/email';
+
     if (window.emailjs && EMAILJS_PUBLIC_KEY !== 'TU_PUBLIC_KEY') {
       emailjs.init(EMAILJS_PUBLIC_KEY);
     }
@@ -2145,8 +2149,8 @@
     // Una falla nueva (caída nueva, o un signo vital que recién se pone crítico)
     // manda el mail enseguida, sin esperar. Para recordatorios más seguidos,
     // bajá estos valores, ej: 30 * 1000 (30 segundos).
-    const EMAILJS_COOLDOWN_FALL_MS   = 30 * 1000;       // caídas: recordatorio cada 30 segundos
-    const EMAILJS_COOLDOWN_VITALS_MS = 60 * 1000;       // signos vitales: recordatorio cada 1 minuto
+    const EMAILJS_COOLDOWN_FALL_MS   = 5 * 60 * 1000;   // caídas: recordatorio cada 5 minutos
+    const EMAILJS_COOLDOWN_VITALS_MS = 5 * 60 * 1000;   // signos vitales: recordatorio cada 5 minutos
     const EMAILJS_GAP_MS = 1500; // separación mínima entre dos envíos seguidos
     let ptLastEmailTs = 0;      // espera entre mails de signos vitales
     let ptLastFallEmailTs = 0;  // espera propia para mails de caída (independiente de los vitales)
@@ -2160,6 +2164,7 @@
         ptMailStatus(false, 'El email de alertas "' + malo + '" no es válido. Corregilo en "Editar perfil".');
         return false;
       }
+      if (EMAIL_FUNCTION_URL) return true; // Brevo vía Vercel
       if (!window.emailjs || EMAILJS_PUBLIC_KEY === 'TU_PUBLIC_KEY' || EMAILJS_TEMPLATE_ID === 'TU_TEMPLATE_ID') {
         console.warn('MOON: falta configurar EmailJS (Service ID / Template ID / Public Key) o no cargó la librería.');
         ptMailStatus(false, 'EmailJS no está configurado o no cargó la librería.');
@@ -2212,7 +2217,8 @@
       while (ptEmailQueue.length) {
         const job = ptEmailQueue.shift();
         try {
-          await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, job.params);
+          if (EMAIL_FUNCTION_URL) await ptEnviarEmailBrevo(job.params);
+          else await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, job.params);
           const hora = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
           console.log('MOON: ' + job.label + ' enviado a ' + job.params.to_email);
           ptMailStatus(true, 'Mail de ' + job.label + ' enviado a ' + job.params.to_email + ' (' + hora + ')');
@@ -2227,6 +2233,13 @@
         await new Promise(r => setTimeout(r, EMAILJS_GAP_MS));
       }
       ptEmailBusy = false;
+    }
+
+    // Manda el mail por la función de Vercel (Brevo). Lanza un error si falla.
+    async function ptEnviarEmailBrevo(params) {
+      const res = await fetch(EMAIL_FUNCTION_URL, { method: 'POST', body: new URLSearchParams(params) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
     }
 
     // Mail por signos vitales críticos (solo vitales, las caídas tienen su propia función)
