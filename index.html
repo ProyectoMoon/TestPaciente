@@ -2609,6 +2609,28 @@
       }
     }
 
+    // Muestra en la tarjeta qué va a pasar con la llamada después de una caída
+    let ptCuentaLlamadaTimer = null;
+    function ptAvisoLlamadaCaida() {
+      if (ptCuentaLlamadaTimer) { clearInterval(ptCuentaLlamadaTimer); ptCuentaLlamadaTimer = null; }
+      if (!ptGetEmergencyPhone()) {
+        ptCallStatus(false, 'No se va a llamar: falta el teléfono de emergencia en "Editar perfil".');
+        return;
+      }
+      if (!ptTwilioListo()) {
+        ptCallStatus(false, 'No se va a llamar: las llamadas no están activas.');
+        return;
+      }
+      const tick = () => {
+        if (fallState !== 'alert') { clearInterval(ptCuentaLlamadaTimer); ptCuentaLlamadaTimer = null; ptCallStatus(true, 'Llamada cancelada: el paciente indicó que está bien.'); return; }
+        const faltan = Math.ceil((LLAMADA_GRACIA_CAIDA_MS - (Date.now() - ptFallTs)) / 1000);
+        if (faltan <= 0) { clearInterval(ptCuentaLlamadaTimer); ptCuentaLlamadaTimer = null; return; }
+        ptCallStatus(true, 'Llamando a ' + ptGetEmergencyPhone() + ' en ' + faltan + ' s si no tocás "Estoy bien".');
+      };
+      tick();
+      ptCuentaLlamadaTimer = setInterval(tick, 1000);
+    }
+
     async function ptLlamadaCaida() {
       if (fallState !== 'alert' || !ptTwilioListo()) return;
       if (Date.now() - ptFallTs < LLAMADA_GRACIA_CAIDA_MS) return;  // todavía puede tocar "Estoy bien"
@@ -2711,6 +2733,7 @@
       ptFallTs = Date.now();
       ptLastFallCallTs = 0;
       // La llamada sale si después de LLAMADA_GRACIA_CAIDA_MS nadie tocó "Estoy bien"
+      ptAvisoLlamadaCaida();
       setTimeout(() => { if (fallState === 'alert') ptLlamadaCaida(); }, LLAMADA_GRACIA_CAIDA_MS + 100);
       ptCheckAlarm();
     }
